@@ -13,6 +13,12 @@ test('write requests require JSON and same-origin browser context; protected dat
     assert.equal((await call({ 'Content-Type': 'text/plain' })).status, 415);
     assert.equal((await call({ 'Content-Type': 'application/json', Origin: 'https://untrusted.example' })).status, 403);
     assert.equal((await call({ 'Content-Type': 'application/json' }, '{')).status, 400);
+    // Match the browser's delete request: JSON header and an actual JSON body.
+    // Without a body, req.is() returns null and the JSON guard rejects it.
+    const deletion = await fetch(base + '/api/watchlist/00000000-0000-0000-0000-000000000001', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+    assert.equal(deletion.status, 401); // Reaches authentication, not a 415 rejection.
     const response = await fetch(base + '/api/watchlist');
     assert.equal(response.status, 401);
     assert.equal(response.headers.get('cache-control'), 'no-store');

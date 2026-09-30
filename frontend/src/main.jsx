@@ -108,7 +108,7 @@ function App() {
   async function remove() {
     setBusy(true); setError('');
     try {
-      await api(`watchlist/${deleteTarget.id}`, 'DELETE');
+      await api(`watchlist/${deleteTarget.id}`, 'DELETE', {});
       setPlayers(previous => previous.filter(player => player.id !== deleteTarget.id));
       setDeleteTarget(null); setNotice('Player removed from your watchlist.');
     } catch (error) { report(error); }
