@@ -18,10 +18,14 @@ function getSupabaseConfig() {
   return { url: parsed.href.replace(/\/$/, ''), key };
 }
 
-function getSupabase() {
+function getSupabase(token) {
   const { url, key } = getSupabaseConfig();
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      fetch: (url, options = {}) => fetch(url, { ...options, signal: options.signal || AbortSignal.timeout(10000) }),
+    },
   });
 }
 

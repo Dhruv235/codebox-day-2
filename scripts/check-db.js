@@ -1,36 +1,25 @@
 require('dotenv').config({ quiet: true });
-
-const { getSupabaseConfig } = require('../config/supabase');
+const { getSupabaseConfig, getSupabase } = require('../config/supabase');
 
 async function main() {
   const { url, key } = getSupabaseConfig();
   let response;
   try {
-    // The Data API schema endpoint checks access without needing a table.
-    response = await fetch(`${url}/rest/v1/`, {
-      headers: { apikey: key, Accept: 'application/openapi+json' },
-      signal: AbortSignal.timeout(10000),
-      redirect: 'error',
+    response = await fetch(`${url}/auth/v1/settings`, {
+      headers: { apikey: key }, signal: AbortSignal.timeout(10000), redirect: 'error',
     });
   } catch {
-    throw new Error('Could not reach Supabase. Check the project URL, network, and project status.');
+    throw new Error('Could not reach Supabase. Check the project URL and network.');
   }
-  if (!response.ok) {
-    throw new Error(`Supabase Data API check failed (HTTP ${response.status}). Check your project URL, API key, and Data API settings.`);
+  if (!response.ok) throw new Error(`Supabase rejected the configuration (HTTP ${response.status}). Check the URL and publishable key.`);
+  console.log('Supabase project and publishable key verified.');
+  const { error } = await getSupabase().from('watchlist').select('id').limit(1);
+  if (error?.code === '42501') {
+    console.log('Watchlist table reached; anonymous access correctly denied. Sign in to verify CRUD.');
+  } else if (error) {
+    throw new Error(error.code === 'PGRST205' ? 'Watchlist table missing. Apply supabase/migrations/20260930_watchlist.sql.' : 'Could not verify the watchlist table. Check database and API settings.');
+  } else {
+    throw new Error('Anonymous table access was allowed. Verify the migration grants and row-level security.');
   }
-  let schema;
-  try {
-    schema = await response.json();
-  } catch {
-    throw new Error('Supabase did not return a valid Data API schema. Check SUPABASE_URL.');
-  }
-  if (!schema.swagger && !schema.openapi) {
-    throw new Error('The response was not a Supabase Data API schema. Check SUPABASE_URL.');
-  }
-  console.log('Supabase Data API connection verified. User routes still use the in-memory sample data.');
 }
-
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+main().catch(error => { console.error(error.message); process.exitCode = 1; });
